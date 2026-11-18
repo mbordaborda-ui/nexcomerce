@@ -1,0 +1,29 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.db
+*.db-shm
+*.db-wal
+
+# Frontend
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.local
+.env
+.env.*
+!.env.example
+
+# Sistema
+desktop.ini
+Thumbs.db
+
+# Logs / tooling
+*.log
+.vscode/
+.idea/
+tmpapi/
+tmphello/

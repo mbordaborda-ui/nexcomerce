@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/NexComerce.Api/NexComerce.Api.csproj" />
+    <Project Path="src/NexComerce.Domain/NexComerce.Domain.csproj" />
+    <Project Path="src/NexComerce.Infrastructure/NexComerce.Infrastructure.csproj" />
+  </Folder>
+</Solution>
