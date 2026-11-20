@@ -24,6 +24,7 @@ Interfaz **mobile-first** en español, con estética blanca/violeta, navegación
 - **Ventas y finanzas**: historial filtrable, detalle, anulación, gastos por categoría/proveedor/sede y reportes de ventas, inventario y rentabilidad.
 - **Contactos**: clientes con historial, puntos y etiquetas; proveedores.
 - **Equipo**: usuarios, permisos, sedes y límites del plan.
+- **Acceso del equipo desde el celular**: el propietario crea las credenciales y asigna rol, sede y permisos. Cada empleado entra con su correo y solo ve los módulos habilitados; puede cambiar su contraseña en **Mi cuenta**. Los cambios de permisos y las desactivaciones se aplican de inmediato en el backend.
 - **WhatsApp Business**: conexión por negocio, bandeja de conversaciones, respuestas automáticas, FAQs por prioridad, consulta de productos/precios/stock, horarios, ubicación, pagos, handoff humano, simulador y métricas.
 - **Dashboard**: KPIs, evolución de ingresos, métodos de pago, productos más vendidos y acciones rápidas.
 
@@ -175,6 +176,24 @@ dotnet publish src/NexComerce.Api -c Release -o publish
 
 Con `Database__Provider=Postgres`, el arranque aplica migraciones y deja la app disponible en el puerto configurado. Para producción configura HTTPS, un `Jwt__Key` y `WhatsApp__EncryptionKey` propios, `Cors__Origins__0` con tu dominio y `Seed__Enabled=false`.
 
+## Despliegue separado: Netlify + Render + Supabase
+
+- **Base de datos**: ejecuta `supabase-schema.sql` en el SQL Editor de Supabase. Ver [`SUPABASE.md`](./SUPABASE.md).
+- **Backend**: crea un Blueprint en Render con [`render.yaml`](./render.yaml) y configura `ConnectionStrings__Default` con la cadena del Session Pooler de Supabase.
+- **Frontend**: Netlify usa [`netlify.toml`](./netlify.toml) y `frontend/public/_redirects`. Define la URL del API en `frontend/index.html`:
+
+```html
+window.__NEXCOMERCE_API_URL__ = "https://tu-servicio.onrender.com";
+```
+
+El ZIP de despliegue manual se puede generar con:
+
+```powershell
+cd frontend
+npm run build
+# comprime el contenido de dist en un ZIP para Netlify
+```
+
 ## Seguridad
 
 - Contraseñas con PBKDF2 + salt.
@@ -183,6 +202,7 @@ Con `Database__Provider=Postgres`, el arranque aplica migraciones y deja la app 
 - Tokens de WhatsApp cifrados en reposo (AES-GCM).
 - Cabeceras de seguridad y manejo uniforme de errores (`ProblemDetails`).
 - Permisos verificados en el backend para cada módulo.
+- El rol, la sede y los permisos se refrescan desde la base de datos en cada request autenticado: los cambios y las desactivaciones aplican de inmediato, sin esperar a que expire el JWT.
 
 ## Estado del proyecto
 
