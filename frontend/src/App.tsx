@@ -14,6 +14,10 @@ import { ReportsPage } from './pages/ReportsPage'
 import { TeamPage } from './pages/TeamPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { WhatsAppPage } from './pages/WhatsAppPage'
+import { BillingPage } from './pages/BillingPage'
+import { CashPage } from './pages/CashPage'
+import { ReceivablesPage } from './pages/ReceivablesPage'
+import { OrdersPage } from './pages/OrdersPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 
 function ProtectedLayout() {
@@ -44,6 +48,10 @@ export default function App() {
         <Route path="/team" element={<TeamPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/whatsapp" element={<WhatsAppPage />} />
+        <Route path="/orders" element={<OrdersPage />} />
+        <Route path="/cash" element={<CashPage />} />
+        <Route path="/receivables" element={<ReceivablesPage />} />
+        <Route path="/billing" element={<BillingPage />} />
       </Route>
 
       <Route path="*" element={<NotFoundPage />} />

@@ -9,6 +9,7 @@ import {
   ChevronDown,
   ChevronRight,
   CreditCard,
+  HandCoins,
   LayoutDashboard,
   LogOut,
   MessageCircle,
@@ -29,6 +30,7 @@ import { useAuth, usePermissions } from '../lib/auth'
 import { api } from '../lib/api'
 import type { Conversation, Tenant } from '../lib/types'
 import { cn, Avatar, Badge } from './ui'
+import { InstallPrompt } from './InstallPrompt'
 
 function canSee(session: { user: { role: string }; permissions: string[] } | null, permission?: string) {
   if (!permission) return true
@@ -61,6 +63,7 @@ const navGroups: { label: string; items: NavItem[] }[] = [
       { to: '/', label: 'Inicio', icon: LayoutDashboard },
       { to: '/pos', label: 'Punto de venta', icon: ShoppingBag, permission: 'sales.manage' },
       { to: '/sales', label: 'Ventas', icon: Receipt, permission: 'sales.manage' },
+      { to: '/orders', label: 'Pedidos', icon: ShoppingBag, permission: 'sales.manage' },
     ],
   },
   {
@@ -81,6 +84,8 @@ const navGroups: { label: string; items: NavItem[] }[] = [
   {
     label: 'Finanzas',
     items: [
+      { to: '/cash', label: 'Caja', icon: Wallet, permission: 'sales.manage' },
+      { to: '/receivables', label: 'Cuentas por cobrar', icon: HandCoins, permission: 'customers.manage' },
       { to: '/expenses', label: 'Gastos', icon: Wallet, permission: 'expenses.manage' },
       { to: '/reports', label: 'Reportes', icon: BarChart3, permission: 'reports.view' },
     ],
@@ -89,6 +94,7 @@ const navGroups: { label: string; items: NavItem[] }[] = [
     label: 'Negocio',
     items: [
       { to: '/team', label: 'Equipo y sedes', icon: UserCog, permission: 'employees.manage' },
+      { to: '/billing', label: 'Suscripción', icon: CreditCard, permission: 'settings.manage' },
       { to: '/settings', label: 'Configuración', icon: Settings, permission: 'settings.manage' },
     ],
   },
@@ -107,6 +113,10 @@ const pageTitles: Record<string, string> = {
   '/team': 'Equipo y sedes',
   '/settings': 'Configuración',
   '/whatsapp': 'WhatsApp Business',
+  '/orders': 'Pedidos',
+  '/cash': 'Caja',
+  '/receivables': 'Cuentas por cobrar',
+  '/billing': 'Suscripción',
 }
 
 function Sidebar({ onMore }: { onMore: () => void }) {
@@ -168,7 +178,7 @@ function Sidebar({ onMore }: { onMore: () => void }) {
           <p className="font-display text-[13px] font-bold leading-snug">
             {trialDays !== null && trialDays > 0 ? `Prueba gratis · ${trialDays} días` : 'Todo tu negocio, en un solo lugar'}
           </p>
-          <Link to="/settings" className="mt-2.5 inline-flex w-full items-center justify-center gap-1 rounded-lg bg-white/15 py-1.5 text-[11px] font-semibold hover:bg-white/25">
+          <Link to="/billing" className="mt-2.5 inline-flex w-full items-center justify-center gap-1 rounded-lg bg-white/15 py-1.5 text-[11px] font-semibold hover:bg-white/25">
             Ver mi plan <ArrowUpRight className="size-3" />
           </Link>
         </div>
@@ -274,9 +284,8 @@ function Topbar({ onMore }: { onMore: () => void }) {
 
 const mobileTabs = [
   { to: '/', label: 'Inicio', icon: LayoutDashboard },
-  { to: '/products', label: 'Productos', icon: Package },
-  { to: '/pos', label: 'Vender', icon: Plus, main: true },
-  { to: '/whatsapp', label: 'WhatsApp', icon: MessageCircle },
+  { to: '/orders', label: 'Pedidos', icon: ShoppingBag },
+  { to: '/cash', label: 'Caja', icon: Wallet },
 ]
 
 function MobileNav({ onMore }: { onMore: () => void }) {
@@ -318,7 +327,6 @@ function MobileNav({ onMore }: { onMore: () => void }) {
           >
             <tab.icon className="size-[21px]" strokeWidth={2} />
             {tab.label}
-            {tab.to === '/whatsapp' && <span className="absolute right-2 top-0"><UnreadDot /></span>}
           </NavLink>
         ))}
         <button onClick={onMore} className="flex flex-col items-center gap-1 rounded-xl py-1.5 text-[10px] font-medium text-muted">
@@ -414,6 +422,7 @@ export function AppShell() {
         </main>
       </div>
       <MobileNav onMore={() => setMoreOpen(true)} />
+      <InstallPrompt />
       <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} />
     </div>
   )

@@ -1,4 +1,5 @@
-const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? ''
+const runtimeBase = (window as Window & { __NEXCOMERCE_API_URL__?: string }).__NEXCOMERCE_API_URL__
+const BASE = runtimeBase || (import.meta.env.VITE_API_URL as string | undefined) || ''
 const SESSION_KEY = 'nexcomerce.session'
 
 export class ApiError extends Error {
@@ -32,13 +33,14 @@ type Query = Record<string, string | number | boolean | null | undefined>
 
 function buildUrl(path: string, query?: Query) {
   const normalized = path.startsWith('/') ? path : `/${path}`
-  const url = new URL(`${BASE}/api${normalized}`, window.location.origin)
+  const base = BASE.replace(/\/+$/, '')
+  const url = new URL(`${base}/api${normalized}`, window.location.origin)
   if (query) {
     Object.entries(query).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== '') url.searchParams.set(key, String(value))
     })
   }
-  return url.pathname + url.search
+  return url.toString()
 }
 
 async function request<T>(method: string, path: string, options: { body?: unknown; query?: Query; raw?: boolean } = {}): Promise<T> {
@@ -58,12 +60,19 @@ async function request<T>(method: string, path: string, options: { body?: unknow
   const payload = contentType.includes('application/json') ? await response.json() : await response.text()
 
   if (!response.ok) {
-    const message =
-      typeof payload === 'object' && payload !== null && 'message' in payload
-        ? String((payload as { message: unknown }).message)
-        : typeof payload === 'string' && payload.length > 0
-          ? payload
-          : 'No se pudo completar la solicitud.'
+    let message = 'No se pudo completar la solicitud.'
+    if (typeof payload === 'object' && payload !== null && 'message' in payload) {
+      message = String((payload as { message: unknown }).message)
+    } else if (typeof payload === 'string') {
+      const text = payload.trim()
+      if (text.length > 0 && !text.startsWith('<')) {
+        message = text
+      } else if (response.status === 404) {
+        message = 'No se encontró el servidor de la API. Verifica que el backend esté desplegado y que la URL del API esté configurada.'
+      } else if (response.status >= 500) {
+        message = 'El servidor de la API respondió con un error. Intenta de nuevo en unos minutos.'
+      }
+    }
     if (response.status === 401 && !path.includes('/auth/login')) {
       window.dispatchEvent(new Event('nexcomerce:unauthorized'))
     }

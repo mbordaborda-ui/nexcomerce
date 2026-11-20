@@ -4,6 +4,7 @@ using NexComerce.Domain.Common;
 using NexComerce.Domain.Contacts;
 using NexComerce.Domain.Finance;
 using NexComerce.Domain.Inventory;
+using NexComerce.Domain.Operations;
 using NexComerce.Domain.Sales;
 using NexComerce.Domain.Tenancy;
 using NexComerce.Domain.WhatsApp;
@@ -387,6 +388,151 @@ public static class DbSeeder
                 new Message { TenantId = tenantId, ConversationId = conversation.Id, Direction = MessageDirection.Inbound, Body = inMsg, CreatedAt = now.AddHours(-hoursAgo).AddMinutes(-5), Status = "received" },
                 new Message { TenantId = tenantId, ConversationId = conversation.Id, Direction = MessageDirection.Outbound, Body = outMsg, IsAutomated = status != ConversationStatus.Human, Intent = intent, CreatedAt = now.AddHours(-hoursAgo).AddMinutes(-4), Status = "delivered" }
             );
+        }
+
+        // ── Caja demo ───────────────────────────────────────────────────────
+        var yesterdaySession = new CashSession
+        {
+            TenantId = tenantId,
+            BranchId = mainBranch.Id,
+            BranchName = mainBranch.Name,
+            UserId = cashier.Id,
+            UserName = cashier.FullName,
+            OpenedAt = now.AddDays(-1).Date.AddHours(8),
+            ClosedAt = now.AddDays(-1).Date.AddHours(19),
+            OpeningAmount = 150m,
+            SalesAmount = 1420m,
+            IncomeAmount = 60m,
+            ExpenseAmount = 95m,
+            ExpectedAmount = 1535m,
+            CountedAmount = 1520m,
+            Difference = -15m,
+            Status = CashSessionStatus.Closed,
+            Notes = "Cierre con faltante de $15. Se revisó con el equipo."
+        };
+        yesterdaySession.Movements.Add(new CashMovement { TenantId = tenantId, Type = CashMovementType.Opening, Concept = "Apertura de caja", Amount = 150m, PaymentMethod = "Cash", CreatedAt = yesterdaySession.OpenedAt, Date = yesterdaySession.OpenedAt });
+        yesterdaySession.Movements.Add(new CashMovement { TenantId = tenantId, Type = CashMovementType.Sale, Concept = "Ventas en efectivo del día", Amount = 1420m, PaymentMethod = "Cash", CreatedAt = yesterdaySession.ClosedAt!.Value.AddHours(-2), Date = yesterdaySession.ClosedAt!.Value.AddHours(-2) });
+        yesterdaySession.Movements.Add(new CashMovement { TenantId = tenantId, Type = CashMovementType.Income, Concept = "Cobro de cuenta pendiente", Amount = 60m, PaymentMethod = "Cash", CreatedAt = yesterdaySession.ClosedAt!.Value.AddHours(-3), Date = yesterdaySession.ClosedAt!.Value.AddHours(-3) });
+        yesterdaySession.Movements.Add(new CashMovement { TenantId = tenantId, Type = CashMovementType.Expense, Concept = "Domicilio y mensajería", Amount = 95m, PaymentMethod = "Cash", CreatedAt = yesterdaySession.ClosedAt!.Value.AddHours(-1), Date = yesterdaySession.ClosedAt!.Value.AddHours(-1) });
+        db.CashSessions.Add(yesterdaySession);
+
+        var openSession = new CashSession
+        {
+            TenantId = tenantId,
+            BranchId = mainBranch.Id,
+            BranchName = mainBranch.Name,
+            UserId = manager.Id,
+            UserName = manager.FullName,
+            OpenedAt = now.Date.AddHours(8).AddMinutes(15),
+            OpeningAmount = 200m,
+            SalesAmount = 0,
+            IncomeAmount = 40m,
+            ExpenseAmount = 25m,
+            ExpectedAmount = 215m,
+            Status = CashSessionStatus.Open,
+            Notes = "Turno de la mañana."
+        };
+        openSession.Movements.Add(new CashMovement { TenantId = tenantId, Type = CashMovementType.Opening, Concept = "Apertura de caja", Amount = 200m, PaymentMethod = "Cash", CreatedAt = openSession.OpenedAt, Date = openSession.OpenedAt });
+        openSession.Movements.Add(new CashMovement { TenantId = tenantId, Type = CashMovementType.Income, Concept = "Abono de cliente", Amount = 40m, PaymentMethod = "Cash", CreatedAt = now.Date.AddHours(10), Date = now.Date.AddHours(10) });
+        openSession.Movements.Add(new CashMovement { TenantId = tenantId, Type = CashMovementType.Expense, Concept = "Compra de insumos de aseo", Amount = 25m, PaymentMethod = "Cash", CreatedAt = now.Date.AddHours(11), Date = now.Date.AddHours(11) });
+        db.CashSessions.Add(openSession);
+
+        // ── Cuentas por cobrar demo ─────────────────────────────────────────
+        var receivableSeed = new (int Customer, decimal Total, decimal Paid, int IssuedDaysAgo, int DueInDays, string Concept)[]
+        {
+            (0, 320m, 120m, 25, -8, "Venta a crédito V-2604-0091"),
+            (2, 540m, 0m, 18, 4, "Venta a crédito V-2604-0104"),
+            (4, 180m, 0m, 40, -22, "Venta a crédito V-2603-0078"),
+            (6, 760m, 300m, 12, 12, "Venta a crédito V-2604-0119"),
+            (8, 95m, 0m, 8, 22, "Venta a crédito V-2604-0126"),
+            (1, 260m, 260m, 35, -5, "Venta a crédito V-2603-0082")
+        };
+        foreach (var (customerIndex, total, paid, issuedDays, dueIn, concept) in receivableSeed)
+        {
+            var customer = customers[customerIndex];
+            var receivable = new Receivable
+            {
+                TenantId = tenantId,
+                CustomerId = customer.Id,
+                CustomerName = customer.Name,
+                CustomerPhone = customer.Phone,
+                Concept = concept,
+                Total = total,
+                PaidAmount = paid,
+                IssuedAt = now.AddDays(-issuedDays),
+                DueDate = now.AddDays(dueIn),
+                Status = paid >= total ? ReceivableStatus.Paid : paid > 0 ? ReceivableStatus.Partial : ReceivableStatus.Pending,
+                PaidAt = paid >= total ? now.AddDays(-2) : null,
+                Notes = dueIn < 0 && paid < total ? "Cliente con saldo vencido. Programar recordatorio." : null
+            };
+            if (paid > 0)
+                receivable.Payments.Add(new ReceivablePayment
+                {
+                    TenantId = tenantId,
+                    Amount = paid,
+                    Date = now.AddDays(-Math.Max(1, issuedDays / 3)),
+                    Method = "Cash",
+                    UserName = owner.FullName,
+                    Notes = paid >= total ? "Pago total" : "Abono parcial"
+                });
+            db.Receivables.Add(receivable);
+        }
+
+        // ── Pedidos demo ────────────────────────────────────────────────────
+        var orderSeed = new (OrderChannel Channel, OrderStatus Status, int Customer, int ProductA, int QtyA, int ProductB, int QtyB, int HoursAgo, string? Note)[]
+        {
+            (OrderChannel.WhatsApp, OrderStatus.Pending, 0, 0, 1, 14, 1, 1, "Enviar a Chapinero."),
+            (OrderChannel.Instagram, OrderStatus.Confirmed, 2, 5, 1, -1, 0, 3, "Confirmar color antes de despachar."),
+            (OrderChannel.Counter, OrderStatus.Preparing, 4, 8, 2, 16, 1, 5, "Recoge en tienda a las 5 p.m."),
+            (OrderChannel.WhatsApp, OrderStatus.Ready, 6, 6, 1, 10, 1, 8, null),
+            (OrderChannel.Phone, OrderStatus.Delivered, 8, 14, 1, -1, 0, 26, "Entregado por mensajería."),
+            (OrderChannel.Instagram, OrderStatus.Cancelled, 1, 11, 2, -1, 0, 30, "El cliente no completó el pago.")
+        };
+        var orderCounter = 1;
+        foreach (var (channel, status, customerIndex, productA, qtyA, productB, qtyB, hoursAgo, note) in orderSeed)
+        {
+            var customer = customers[customerIndex];
+            var order = new Order
+            {
+                TenantId = tenantId,
+                Number = $"P-{DateTime.UtcNow:yyMM}-{orderCounter:0000}",
+                Channel = channel,
+                Status = status,
+                CustomerId = customer.Id,
+                CustomerName = customer.Name,
+                CustomerPhone = customer.Phone,
+                BranchId = mainBranch.Id,
+                Notes = note,
+                CreatedAt = now.AddHours(-hoursAgo),
+                DueAt = now.AddHours(-hoursAgo + 24),
+                DeliveredAt = status == OrderStatus.Delivered ? now.AddHours(-hoursAgo + 3) : null
+            };
+            var first = products[productA];
+            order.Items.Add(new OrderItem
+            {
+                TenantId = tenantId,
+                ProductId = first.Id,
+                ProductName = first.Name,
+                Quantity = qtyA,
+                UnitPrice = first.Price,
+                Total = first.Price * qtyA
+            });
+            if (productB >= 0)
+            {
+                var second = products[productB];
+                order.Items.Add(new OrderItem
+                {
+                    TenantId = tenantId,
+                    ProductId = second.Id,
+                    ProductName = second.Name,
+                    Quantity = qtyB,
+                    UnitPrice = second.Price,
+                    Total = second.Price * qtyB
+                });
+            }
+            order.Total = order.Items.Sum(i => i.Total);
+            db.Orders.Add(order);
+            orderCounter++;
         }
 
         await db.SaveChangesAsync();

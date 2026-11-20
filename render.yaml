@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: nexcomerce-api
+    runtime: docker
+    plan: free
+    region: ohio
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: Database__Provider
+        value: Postgres
+      - key: ConnectionStrings__Default
+        sync: false
+      - key: Jwt__Key
+        generateValue: true
+      - key: WhatsApp__EncryptionKey
+        generateValue: true
+      - key: Seed__Enabled
+        value: "false"
+      - key: Cors__Origins__0
+        value: https://nexcomerce.netlify.app

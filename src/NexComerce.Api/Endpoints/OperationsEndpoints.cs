@@ -179,10 +179,12 @@ public static class OperationsEndpoints
             sale.Discount = lineDiscounts + globalDiscount;
             sale.Tax = tax;
             sale.Total = tenant.TaxIncluded ? taxableBase : taxableBase + tax;
-            sale.PaidAmount = request.PaidAmount ?? sale.Total;
+            sale.PaidAmount = request.PaidAmount ?? (paymentMethod == PaymentMethod.Credit ? 0 : sale.Total);
             sale.Change = Math.Max(0, sale.PaidAmount - sale.Total);
 
             db.Sales.Add(sale);
+            await BusinessOperations.AddCashFromSaleAsync(db, sale, sellerId, sale.UserName);
+            await BusinessOperations.CreateReceivableFromSaleAsync(db, sale);
             if (customer is not null)
             {
                 customer.LoyaltyPoints += (int)Math.Floor(sale.Total / 10);

@@ -16,5 +16,8 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
+    // Deja JS/CSS en la raíz de dist para que el deploy sea más simple y
+    // resistente a herramientas que omiten subcarpetas al subir un ZIP.
+    assetsDir: '',
   },
 })

@@ -105,6 +105,8 @@ app.MapTenantEndpoints();
 app.MapTeamEndpoints();
 app.MapCatalogEndpoints();
 app.MapOperationsEndpoints();
+app.MapOperationsPlusEndpoints();
+app.MapBillingEndpoints();
 app.MapReportEndpoints();
 app.MapWhatsAppEndpoints();
 

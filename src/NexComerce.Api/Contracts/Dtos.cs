@@ -194,3 +194,68 @@ public record ProfitReportDto(DateTime From, DateTime To, decimal Revenue, decim
     decimal Expenses, decimal NetProfit, decimal Margin, List<DailyProfitDto> Series, List<ExpenseCategoryDto> ExpenseCategories);
 public record DailyProfitDto(string Date, decimal Revenue, decimal Cost, decimal Expenses);
 public record ExpenseCategoryDto(string Category, decimal Total, int Count);
+
+// ── Billing / subscriptions (demo checkout) ─────────────────────────────────
+public record BillingPlanDto(string Id, string Name, string Tagline, decimal MonthlyPrice, decimal AnnualPrice,
+    int UserLimit, int BranchLimit, int ProductLimit, List<string> Features, bool Recommended);
+public record BillingAddonDto(string Id, string Name, string Description, decimal Price, string Icon);
+public record SubscriptionDto(string Plan, string Status, string Cycle, DateTime CurrentPeriodStart,
+    DateTime CurrentPeriodEnd, DateTime? TrialEndsAt, decimal BasePrice, decimal AddonsPrice, decimal Discount,
+    decimal Total, List<string> Addons, bool CancelAtPeriodEnd, string? PaymentMethod, string? PaymentChannel,
+    DateTime? LastPaymentAt, string? LastInvoiceNumber, int DaysLeft, bool IsTrial);
+public record SubscriptionInvoiceDto(Guid Id, string Number, string Plan, string Cycle, decimal Subtotal,
+    decimal Addons, decimal Discount, decimal Tax, decimal Total, string Status, DateTime IssuedAt, DateTime DueAt,
+    DateTime? PaidAt, string? PaymentMethod, string? PaymentChannel, string? Reference, string? CouponCode,
+    string? Description, string? AddonList);
+public record BillingOverviewDto(SubscriptionDto Subscription, List<BillingPlanDto> Plans,
+    List<BillingAddonDto> Addons, List<SubscriptionInvoiceDto> Invoices, UsageDto Usage, bool Demo,
+    List<string> AvailablePaymentMethods, string CurrencySymbol);
+public record BillingCheckoutRequest(string Plan, string? Cycle, List<string>? Addons, string? CouponCode,
+    string Channel, string? CardNumber, string? CardHolder, string? CardExpiry, string? CardCvc,
+    string? TransferReference, string? QrReference);
+public record BillingCheckoutResultDto(bool Success, string Message, SubscriptionInvoiceDto? Invoice,
+    SubscriptionDto? Subscription);
+
+// ── Caja ────────────────────────────────────────────────────────────────────
+public record CashMovementDto(Guid Id, string Type, string Concept, decimal Amount, string? PaymentMethod,
+    string? Reference, Guid? SaleId, string? UserName, DateTime Date);
+public record CashSessionDto(Guid Id, Guid? BranchId, string? BranchName, string? UserName, DateTime OpenedAt,
+    DateTime? ClosedAt, decimal OpeningAmount, decimal SalesAmount, decimal IncomeAmount, decimal ExpenseAmount,
+    decimal ExpectedAmount, decimal? CountedAmount, decimal Difference, string Status, string? Notes,
+    List<CashMovementDto> Movements);
+public record CashSummaryDto(decimal CashSalesToday, decimal IncomeToday, decimal ExpensesToday,
+    int OpenSessions, decimal LastDifference, int SessionsThisMonth);
+public record CashOverviewDto(CashSessionDto? Current, List<CashSessionDto> Sessions, CashSummaryDto Summary);
+public record OpenCashRequest(decimal OpeningAmount, Guid? BranchId, string? Notes);
+public record CashMovementRequest(string Type, string Concept, decimal Amount, string? PaymentMethod, string? Reference);
+public record CloseCashRequest(decimal CountedAmount, string? Notes);
+
+// ── Cuentas por cobrar ──────────────────────────────────────────────────────
+public record ReceivablePaymentDto(Guid Id, decimal Amount, DateTime Date, string? Method, string? Reference,
+    string? Notes, string? UserName);
+public record ReceivableDto(Guid Id, Guid? CustomerId, string CustomerName, string? CustomerPhone, Guid? SaleId,
+    string? SaleNumber, string Concept, decimal Total, decimal PaidAmount, decimal Balance, DateTime IssuedAt,
+    DateTime DueDate, DateTime? PaidAt, string Status, int DaysOverdue, string? Notes,
+    List<ReceivablePaymentDto> Payments);
+public record ReceivablesSummaryDto(decimal TotalPending, decimal OverdueAmount, decimal DueThisWeek,
+    decimal CollectedThisMonth, int CustomersWithDebt, decimal Current, decimal Days1To30, decimal Days31To60,
+    decimal Days60Plus);
+public record ReceivablesOverviewDto(List<ReceivableDto> Items, ReceivablesSummaryDto Summary, int Total);
+public record SaveReceivableRequest(Guid? CustomerId, string CustomerName, string? CustomerPhone, string Concept,
+    decimal Total, DateTime? IssuedAt, DateTime? DueDate, string? Notes);
+public record RegisterReceivablePaymentRequest(decimal Amount, string? Method, string? Reference, string? Notes);
+
+// ── Pedidos ─────────────────────────────────────────────────────────────────
+public record OrderItemDto(Guid Id, Guid? ProductId, string ProductName, int Quantity, decimal UnitPrice,
+    decimal Total, string? Notes);
+public record OrderDto(Guid Id, string Number, string Channel, string Status, Guid? CustomerId, string CustomerName,
+    string? CustomerPhone, decimal Total, DateTime? DueAt, DateTime? DeliveredAt, Guid? SaleId, string? SaleNumber,
+    string? Notes, DateTime CreatedAt, int ItemCount, List<OrderItemDto> Items);
+public record OrderStatsDto(int Pending, int Confirmed, int Preparing, int Ready, int DeliveredToday,
+    decimal RevenueToday, int WhatsAppOpen, int InstagramOpen);
+public record OrdersOverviewDto(List<OrderDto> Items, OrderStatsDto Stats);
+public record SaveOrderItemRequest(Guid? ProductId, string ProductName, int Quantity, decimal? UnitPrice, string? Notes);
+public record SaveOrderRequest(string Channel, string CustomerName, Guid? CustomerId, string? CustomerPhone,
+    DateTime? DueAt, string? Notes, List<SaveOrderItemRequest> Items);
+public record UpdateOrderStatusRequest(string Status);
+public record ConvertOrderRequest(string PaymentMethod, decimal? PaidAmount, int? DueDays);

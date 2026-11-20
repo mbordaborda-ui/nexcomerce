@@ -1,10 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using NexComerce.Domain.Audit;
+using NexComerce.Domain.Billing;
 using NexComerce.Domain.Catalog;
 using NexComerce.Domain.Common;
 using NexComerce.Domain.Contacts;
 using NexComerce.Domain.Finance;
 using NexComerce.Domain.Inventory;
+using NexComerce.Domain.Operations;
 using NexComerce.Domain.Sales;
 using NexComerce.Domain.Tenancy;
 using NexComerce.Domain.WhatsApp;
@@ -37,6 +39,14 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext
     public DbSet<Conversation> Conversations => Set<Conversation>();
     public DbSet<Message> Messages => Set<Message>();
     public DbSet<WhatsAppFaq> WhatsAppFaqs => Set<WhatsAppFaq>();
+    public DbSet<Subscription> Subscriptions => Set<Subscription>();
+    public DbSet<SubscriptionInvoice> SubscriptionInvoices => Set<SubscriptionInvoice>();
+    public DbSet<CashSession> CashSessions => Set<CashSession>();
+    public DbSet<CashMovement> CashMovements => Set<CashMovement>();
+    public DbSet<Receivable> Receivables => Set<Receivable>();
+    public DbSet<ReceivablePayment> ReceivablePayments => Set<ReceivablePayment>();
+    public DbSet<Order> Orders => Set<Order>();
+    public DbSet<OrderItem> OrderItems => Set<OrderItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -117,6 +127,71 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext
             e.HasIndex(x => new { x.TenantId, x.CreatedAt });
         });
 
+        modelBuilder.Entity<Subscription>(e =>
+        {
+            e.HasIndex(x => x.TenantId).IsUnique();
+            e.Property(x => x.BasePrice).HasPrecision(18, 2);
+            e.Property(x => x.AddonsPrice).HasPrecision(18, 2);
+            e.Property(x => x.Discount).HasPrecision(18, 2);
+            e.Property(x => x.Total).HasPrecision(18, 2);
+        });
+
+        modelBuilder.Entity<SubscriptionInvoice>(e =>
+        {
+            e.HasIndex(x => new { x.TenantId, x.Number }).IsUnique();
+            e.Property(x => x.Subtotal).HasPrecision(18, 2);
+            e.Property(x => x.Addons).HasPrecision(18, 2);
+            e.Property(x => x.Discount).HasPrecision(18, 2);
+            e.Property(x => x.Tax).HasPrecision(18, 2);
+            e.Property(x => x.Total).HasPrecision(18, 2);
+        });
+
+        modelBuilder.Entity<CashSession>(e =>
+        {
+            e.Property(x => x.OpeningAmount).HasPrecision(18, 2);
+            e.Property(x => x.SalesAmount).HasPrecision(18, 2);
+            e.Property(x => x.IncomeAmount).HasPrecision(18, 2);
+            e.Property(x => x.ExpenseAmount).HasPrecision(18, 2);
+            e.Property(x => x.ExpectedAmount).HasPrecision(18, 2);
+            e.Property(x => x.CountedAmount).HasPrecision(18, 2);
+            e.Property(x => x.Difference).HasPrecision(18, 2);
+            e.HasIndex(x => new { x.TenantId, x.Status });
+        });
+
+        modelBuilder.Entity<CashMovement>(e =>
+        {
+            e.Property(x => x.Amount).HasPrecision(18, 2);
+            e.HasOne(x => x.CashSession).WithMany(c => c.Movements).HasForeignKey(x => x.CashSessionId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.TenantId, x.Date });
+        });
+
+        modelBuilder.Entity<Receivable>(e =>
+        {
+            e.Property(x => x.Total).HasPrecision(18, 2);
+            e.Property(x => x.PaidAmount).HasPrecision(18, 2);
+            e.HasIndex(x => new { x.TenantId, x.DueDate });
+        });
+
+        modelBuilder.Entity<ReceivablePayment>(e =>
+        {
+            e.Property(x => x.Amount).HasPrecision(18, 2);
+            e.HasOne(x => x.Receivable).WithMany(r => r.Payments).HasForeignKey(x => x.ReceivableId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Order>(e =>
+        {
+            e.HasIndex(x => new { x.TenantId, x.Number }).IsUnique();
+            e.Property(x => x.Total).HasPrecision(18, 2);
+            e.HasIndex(x => new { x.TenantId, x.Status });
+        });
+
+        modelBuilder.Entity<OrderItem>(e =>
+        {
+            e.Property(x => x.UnitPrice).HasPrecision(18, 2);
+            e.Property(x => x.Total).HasPrecision(18, 2);
+            e.HasOne(x => x.Order).WithMany(o => o.Items).HasForeignKey(x => x.OrderId).OnDelete(DeleteBehavior.Cascade);
+        });
+
         // Universal tenant isolation: every tenant-owned entity is filtered automatically.
         modelBuilder.Entity<User>().HasQueryFilter(e => TenantBypass || e.TenantId == CurrentTenantId);
         modelBuilder.Entity<Branch>().HasQueryFilter(e => TenantBypass || e.TenantId == CurrentTenantId);
@@ -135,6 +210,14 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext
         modelBuilder.Entity<Conversation>().HasQueryFilter(e => TenantBypass || e.TenantId == CurrentTenantId);
         modelBuilder.Entity<Message>().HasQueryFilter(e => TenantBypass || e.TenantId == CurrentTenantId);
         modelBuilder.Entity<WhatsAppFaq>().HasQueryFilter(e => TenantBypass || e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<Subscription>().HasQueryFilter(e => TenantBypass || e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<SubscriptionInvoice>().HasQueryFilter(e => TenantBypass || e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<CashSession>().HasQueryFilter(e => TenantBypass || e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<CashMovement>().HasQueryFilter(e => TenantBypass || e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<Receivable>().HasQueryFilter(e => TenantBypass || e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<ReceivablePayment>().HasQueryFilter(e => TenantBypass || e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<Order>().HasQueryFilter(e => TenantBypass || e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<OrderItem>().HasQueryFilter(e => TenantBypass || e.TenantId == CurrentTenantId);
     }
 
     public override int SaveChanges()

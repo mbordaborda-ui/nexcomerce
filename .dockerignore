@@ -1,0 +1,14 @@
+**/bin
+**/obj
+**/node_modules
+frontend/dist
+frontend/node_modules
+deploy-netlify
+nexcomerce-netlify.zip
+.git
+.gitignore
+.vs
+.idea
+*.user
+tmpapi
+tmphello

@@ -113,6 +113,7 @@ public static class AuthEndpoints
 
             await db.SaveChangesAsync();
             tenantContext.SetTenant(tenant.Id);
+            await BusinessOperations.EnsureSubscriptionAsync(db, tenant.Id);
 
             var (token, expires) = tokens.Create(owner, tenant);
             return Results.Ok(new AuthResponse(token, expires, owner.ToDto(branch.Name), tenant.ToDto(), branch.ToDto(1), owner.PermissionList()));

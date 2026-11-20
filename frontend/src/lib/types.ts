@@ -491,3 +491,228 @@ export interface WebhookInfo {
   graphVersion: string
   connected: boolean
 }
+
+// ── Billing / suscripción ───────────────────────────────────────────────────
+export interface BillingPlan {
+  id: string
+  name: string
+  tagline: string
+  monthlyPrice: number
+  annualPrice: number
+  userLimit: number
+  branchLimit: number
+  productLimit: number
+  features: string[]
+  recommended: boolean
+}
+
+export interface BillingAddon {
+  id: string
+  name: string
+  description: string
+  price: number
+  icon: string
+}
+
+export interface Subscription {
+  plan: string
+  status: string
+  cycle: string
+  currentPeriodStart: string
+  currentPeriodEnd: string
+  trialEndsAt?: string | null
+  basePrice: number
+  addonsPrice: number
+  discount: number
+  total: number
+  addons: string[]
+  cancelAtPeriodEnd: boolean
+  paymentMethod?: string | null
+  paymentChannel?: string | null
+  lastPaymentAt?: string | null
+  lastInvoiceNumber?: string | null
+  daysLeft: number
+  isTrial: boolean
+}
+
+export interface SubscriptionInvoice {
+  id: string
+  number: string
+  plan: string
+  cycle: string
+  subtotal: number
+  addons: number
+  discount: number
+  tax: number
+  total: number
+  status: string
+  issuedAt: string
+  dueAt: string
+  paidAt?: string | null
+  paymentMethod?: string | null
+  paymentChannel?: string | null
+  reference?: string | null
+  couponCode?: string | null
+  description?: string | null
+  addonList?: string | null
+}
+
+export interface BillingOverview {
+  subscription: Subscription
+  plans: BillingPlan[]
+  addons: BillingAddon[]
+  invoices: SubscriptionInvoice[]
+  usage: Usage
+  demo: boolean
+  availablePaymentMethods: string[]
+  currencySymbol: string
+}
+
+export interface BillingCheckoutResult {
+  success: boolean
+  message: string
+  invoice?: SubscriptionInvoice | null
+  subscription?: Subscription | null
+}
+
+// ── Caja ────────────────────────────────────────────────────────────────────
+export interface CashMovement {
+  id: string
+  type: string
+  concept: string
+  amount: number
+  paymentMethod?: string | null
+  reference?: string | null
+  saleId?: string | null
+  userName?: string | null
+  date: string
+}
+
+export interface CashSession {
+  id: string
+  branchId?: string | null
+  branchName?: string | null
+  userName?: string | null
+  openedAt: string
+  closedAt?: string | null
+  openingAmount: number
+  salesAmount: number
+  incomeAmount: number
+  expenseAmount: number
+  expectedAmount: number
+  countedAmount?: number | null
+  difference: number
+  status: string
+  notes?: string | null
+  movements: CashMovement[]
+}
+
+export interface CashSummary {
+  cashSalesToday: number
+  incomeToday: number
+  expensesToday: number
+  openSessions: number
+  lastDifference: number
+  sessionsThisMonth: number
+}
+
+export interface CashOverview {
+  current: CashSession | null
+  sessions: CashSession[]
+  summary: CashSummary
+}
+
+// ── Cuentas por cobrar ──────────────────────────────────────────────────────
+export interface ReceivablePayment {
+  id: string
+  amount: number
+  date: string
+  method?: string | null
+  reference?: string | null
+  notes?: string | null
+  userName?: string | null
+}
+
+export interface Receivable {
+  id: string
+  customerId?: string | null
+  customerName: string
+  customerPhone?: string | null
+  saleId?: string | null
+  saleNumber?: string | null
+  concept: string
+  total: number
+  paidAmount: number
+  balance: number
+  issuedAt: string
+  dueDate: string
+  paidAt?: string | null
+  status: string
+  daysOverdue: number
+  notes?: string | null
+  payments: ReceivablePayment[]
+}
+
+export interface ReceivablesSummary {
+  totalPending: number
+  overdueAmount: number
+  dueThisWeek: number
+  collectedThisMonth: number
+  customersWithDebt: number
+  current: number
+  days1To30: number
+  days31To60: number
+  days60Plus: number
+}
+
+export interface ReceivablesOverview {
+  items: Receivable[]
+  summary: ReceivablesSummary
+  total: number
+}
+
+// ── Pedidos ─────────────────────────────────────────────────────────────────
+export interface OrderItem {
+  id: string
+  productId?: string | null
+  productName: string
+  quantity: number
+  unitPrice: number
+  total: number
+  notes?: string | null
+}
+
+export interface Order {
+  id: string
+  number: string
+  channel: string
+  status: string
+  customerId?: string | null
+  customerName: string
+  customerPhone?: string | null
+  total: number
+  dueAt?: string | null
+  deliveredAt?: string | null
+  saleId?: string | null
+  saleNumber?: string | null
+  notes?: string | null
+  createdAt: string
+  itemCount: number
+  items: OrderItem[]
+}
+
+export interface OrderStats {
+  pending: number
+  confirmed: number
+  preparing: number
+  ready: number
+  deliveredToday: number
+  revenueToday: number
+  whatsAppOpen: number
+  instagramOpen: number
+}
+
+export interface OrdersOverview {
+  items: Order[]
+  stats: OrderStats
+}

@@ -182,3 +182,55 @@ export function roleLabel(value?: string | null): string {
 export function statusLabel(value?: string | null): string {
   return value ? (statusLabels[value] ?? value) : '—'
 }
+
+export const orderStatusLabels: Record<string, string> = {
+  Pending: 'Nuevo',
+  Confirmed: 'Confirmado',
+  Preparing: 'En preparación',
+  Ready: 'Listo',
+  Delivered: 'Entregado',
+  Cancelled: 'Cancelado',
+}
+
+export const orderChannelLabels: Record<string, string> = {
+  WhatsApp: 'WhatsApp',
+  Instagram: 'Instagram',
+  Counter: 'Mostrador',
+  Phone: 'Teléfono',
+  Other: 'Otro',
+}
+
+export const receivableStatusLabels: Record<string, string> = {
+  Pending: 'Pendiente',
+  Partial: 'Abono parcial',
+  Paid: 'Pagada',
+  Cancelled: 'Anulada',
+}
+
+export const cashTypeLabels: Record<string, string> = {
+  Opening: 'Apertura',
+  Sale: 'Venta',
+  Income: 'Ingreso',
+  Expense: 'Egreso',
+  Withdrawal: 'Retiro',
+  Adjustment: 'Ajuste',
+}
+
+export const subscriptionStatusLabels: Record<string, string> = {
+  Trialing: 'Prueba gratuita',
+  Active: 'Activa',
+  PastDue: 'Pago pendiente',
+  Cancelled: 'Cancelada',
+}
+
+export function orderStatusLabel(value?: string | null): string {
+  return value ? (orderStatusLabels[value] ?? value) : '—'
+}
+
+export function orderChannelLabel(value?: string | null): string {
+  return value ? (orderChannelLabels[value] ?? value) : '—'
+}
+
+export function receivableStatusLabel(value?: string | null): string {
+  return value ? (receivableStatusLabels[value] ?? value) : '—'
+}

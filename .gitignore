@@ -27,3 +27,8 @@ Thumbs.db
 .idea/
 tmpapi/
 tmphello/
+
+# Artefactos de despliegue estático
+deploy-netlify/
+nexcomerce-netlify.zip
+

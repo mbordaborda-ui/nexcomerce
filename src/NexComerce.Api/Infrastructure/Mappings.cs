@@ -1,9 +1,11 @@
 using NexComerce.Api.Contracts;
+using NexComerce.Domain.Billing;
 using NexComerce.Domain.Catalog;
 using NexComerce.Domain.Common;
 using NexComerce.Domain.Contacts;
 using NexComerce.Domain.Finance;
 using NexComerce.Domain.Inventory;
+using NexComerce.Domain.Operations;
 using NexComerce.Domain.Sales;
 using NexComerce.Domain.Tenancy;
 using NexComerce.Domain.WhatsApp;
@@ -92,4 +94,64 @@ public static class Map
     public static MessageDto ToDto(this Message m) => new(
         m.Id, m.ConversationId, m.Direction.ToString(), m.Body, m.Type, m.MediaUrl, m.Status,
         m.IsAutomated, m.Intent, m.SentByName, m.CreatedAt);
+
+    // ── Billing ─────────────────────────────────────────────────────────────
+    public static SubscriptionDto ToDto(this Subscription s)
+    {
+        var daysLeft = Math.Max(0, (int)Math.Ceiling((s.CurrentPeriodEnd - DateTime.UtcNow).TotalDays));
+        return new SubscriptionDto(
+            s.Plan.ToString(), s.Status.ToString(), s.Cycle.ToString(), s.CurrentPeriodStart, s.CurrentPeriodEnd,
+            s.TrialEndsAt, s.BasePrice, s.AddonsPrice, s.Discount, s.Total,
+            SplitAddons(s.Addons), s.CancelAtPeriodEnd, s.PaymentMethod, s.PaymentChannel, s.LastPaymentAt,
+            s.LastInvoiceNumber, daysLeft, s.Status == SubscriptionStatus.Trialing);
+    }
+
+    public static List<string> SplitAddons(string? addons) =>
+        string.IsNullOrWhiteSpace(addons)
+            ? []
+            : addons.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+
+    public static SubscriptionInvoiceDto ToDto(this SubscriptionInvoice i) => new(
+        i.Id, i.Number, i.Plan, i.Cycle.ToString(), i.Subtotal, i.Addons, i.Discount, i.Tax, i.Total,
+        i.Status.ToString(), i.IssuedAt, i.DueAt, i.PaidAt, i.PaymentMethod, i.PaymentChannel, i.Reference,
+        i.CouponCode, i.Description, i.AddonList);
+
+    // ── Caja ────────────────────────────────────────────────────────────────
+    public static CashMovementDto ToDto(this CashMovement m) => new(
+        m.Id, m.Type.ToString(), m.Concept, m.Amount, m.PaymentMethod, m.Reference, m.SaleId, m.UserName, m.Date);
+
+    public static CashSessionDto ToDto(this CashSession s) => new(
+        s.Id, s.BranchId, s.BranchName, s.UserName, s.OpenedAt, s.ClosedAt, s.OpeningAmount, s.SalesAmount,
+        s.IncomeAmount, s.ExpenseAmount, s.ExpectedAmount, s.CountedAmount, s.Difference, s.Status.ToString(),
+        s.Notes, s.Movements.OrderByDescending(m => m.Date).Select(m => m.ToDto()).ToList());
+
+    // ── Cuentas por cobrar ─────────────────────────────────────────────────
+    public static ReceivablePaymentDto ToDto(this ReceivablePayment p) => new(
+        p.Id, p.Amount, p.Date, p.Method, p.Reference, p.Notes, p.UserName);
+
+    public static ReceivableDto ToDto(this Receivable r)
+    {
+        var balance = Math.Max(0, r.Total - r.PaidAmount);
+        var status = r.Status == ReceivableStatus.Cancelled
+            ? ReceivableStatus.Cancelled
+            : balance <= 0.009m
+                ? ReceivableStatus.Paid
+                : r.PaidAmount > 0 ? ReceivableStatus.Partial : ReceivableStatus.Pending;
+        var daysOverdue = balance > 0 && r.DueDate.Date < DateTime.UtcNow.Date
+            ? (int)(DateTime.UtcNow.Date - r.DueDate.Date).TotalDays
+            : 0;
+        return new ReceivableDto(
+            r.Id, r.CustomerId, r.CustomerName, r.CustomerPhone, r.SaleId, r.SaleNumber, r.Concept,
+            r.Total, r.PaidAmount, balance, r.IssuedAt, r.DueDate, r.PaidAt, status.ToString(), daysOverdue,
+            r.Notes, r.Payments.OrderByDescending(p => p.Date).Select(p => p.ToDto()).ToList());
+    }
+
+    // ── Pedidos ─────────────────────────────────────────────────────────────
+    public static OrderItemDto ToDto(this OrderItem i) => new(
+        i.Id, i.ProductId, i.ProductName, i.Quantity, i.UnitPrice, i.Total, i.Notes);
+
+    public static OrderDto ToDto(this Order o) => new(
+        o.Id, o.Number, o.Channel.ToString(), o.Status.ToString(), o.CustomerId, o.CustomerName, o.CustomerPhone,
+        o.Total, o.DueAt, o.DeliveredAt, o.SaleId, o.SaleNumber, o.Notes, o.CreatedAt, o.Items.Count,
+        o.Items.Select(i => i.ToDto()).ToList());
 }
