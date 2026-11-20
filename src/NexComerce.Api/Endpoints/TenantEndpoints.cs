@@ -63,7 +63,7 @@ public static class TeamEndpoints
         (Permissions.ProductsManage, "Gestionar productos", "Catálogo"),
         (Permissions.InventoryManage, "Gestionar inventario", "Catálogo"),
         (Permissions.SalesManage, "Registrar y anular ventas", "Ventas"),
-        (Permissions.CustomersManage, "Gestionar clientes", "Contactos"),
+        (Permissions.CustomersManage, "Gestionar clientes y cartera", "Contactos"),
         (Permissions.SuppliersManage, "Gestionar proveedores", "Contactos"),
         (Permissions.ExpensesManage, "Gestionar gastos", "Finanzas"),
         (Permissions.ReportsView, "Ver reportes", "Reportes"),
@@ -101,7 +101,7 @@ public static class TeamEndpoints
             if (request.BranchId.HasValue && !await db.Branches.AnyAsync(b => b.Id == request.BranchId))
                 Guard.BadRequest("La sucursal indicada no existe.");
 
-            var permissions = request.Permissions is { Length: > 0 }
+            var permissions = request.Permissions is not null
                 ? request.Permissions.Where(p => Permissions.All.Contains(p)).ToArray()
                 : Permissions.DefaultFor(role);
             var user = new User
@@ -136,8 +136,13 @@ public static class TeamEndpoints
             user.Role = role;
             user.BranchId = request.BranchId;
             user.IsActive = request.IsActive;
-            if (request.Permissions is { Length: > 0 })
+            if (request.Permissions is not null)
                 user.Permissions = string.Join(',', request.Permissions.Where(p => Permissions.All.Contains(p)));
+            if (!string.IsNullOrWhiteSpace(request.Password))
+            {
+                if (request.Password.Length < 8) Guard.BadRequest("La contraseña debe tener al menos 8 caracteres.");
+                user.PasswordHash = PasswordHasher.Hash(request.Password);
+            }
             await db.SaveChangesAsync();
             var branch = user.BranchId == null ? null : await db.Branches.FirstOrDefaultAsync(b => b.Id == user.BranchId);
             return Results.Ok(user.ToDto(branch?.Name));
@@ -161,9 +166,10 @@ public static class TeamEndpoints
             new { id = "Cashier", name = "Cajero", description = "Ventas y clientes.", permissions = Permissions.DefaultFor(UserRole.Cashier) },
             new { id = "Warehouse", name = "Bodega", description = "Productos e inventario.", permissions = Permissions.DefaultFor(UserRole.Warehouse) },
             new { id = "Support", name = "Asesor", description = "Clientes y conversaciones de WhatsApp.", permissions = Permissions.DefaultFor(UserRole.Support) }
-        }));
+        })).RequirePermission(Permissions.EmployeesManage);
 
-        group.MapGet("/permissions", () => Results.Ok(PermissionCatalog.Select(p => new { p.Key, p.Label, p.Group, assigned = false })));
+        group.MapGet("/permissions", () => Results.Ok(PermissionCatalog.Select(p => new { p.Key, p.Label, p.Group, assigned = false })))
+            .RequirePermission(Permissions.EmployeesManage);
 
         group.MapGet("/branches", async (AppDbContext db) =>
         {

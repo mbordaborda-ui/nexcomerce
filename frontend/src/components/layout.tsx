@@ -21,6 +21,7 @@ import {
   Sparkles,
   Truck,
   UserCog,
+  UserRound,
   Users,
   Wallet,
   X,
@@ -60,7 +61,7 @@ const navGroups: { label: string; items: NavItem[] }[] = [
   {
     label: 'Principal',
     items: [
-      { to: '/', label: 'Inicio', icon: LayoutDashboard },
+      { to: '/', label: 'Inicio', icon: LayoutDashboard, permission: 'dashboard.view' },
       { to: '/pos', label: 'Punto de venta', icon: ShoppingBag, permission: 'sales.manage' },
       { to: '/sales', label: 'Ventas', icon: Receipt, permission: 'sales.manage' },
       { to: '/orders', label: 'Pedidos', icon: ShoppingBag, permission: 'sales.manage' },
@@ -95,6 +96,7 @@ const navGroups: { label: string; items: NavItem[] }[] = [
     items: [
       { to: '/team', label: 'Equipo y sedes', icon: UserCog, permission: 'employees.manage' },
       { to: '/billing', label: 'Suscripción', icon: CreditCard, permission: 'settings.manage' },
+      { to: '/account', label: 'Mi cuenta', icon: UserRound },
       { to: '/settings', label: 'Configuración', icon: Settings, permission: 'settings.manage' },
     ],
   },
@@ -112,6 +114,7 @@ const pageTitles: Record<string, string> = {
   '/reports': 'Reportes',
   '/team': 'Equipo y sedes',
   '/settings': 'Configuración',
+  '/account': 'Mi cuenta',
   '/whatsapp': 'WhatsApp Business',
   '/orders': 'Pedidos',
   '/cash': 'Caja',
@@ -119,11 +122,12 @@ const pageTitles: Record<string, string> = {
   '/billing': 'Suscripción',
 }
 
-function Sidebar({ onMore }: { onMore: () => void }) {
+function Sidebar() {
   const { session, logout } = useAuth()
-  const { canManageWhatsApp } = usePermissions()
+  const { canManageWhatsApp, canManageSettings } = usePermissions()
   const tenant = session?.tenant
   const trialDays = tenant?.trialEndsAt ? Math.max(0, Math.ceil((new Date(tenant.trialEndsAt).getTime() - Date.now()) / 86400000)) : null
+  const planTarget = canManageSettings ? '/billing' : '/account'
 
   return (
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-[264px] flex-col border-r border-line bg-white lg:flex">
@@ -178,18 +182,18 @@ function Sidebar({ onMore }: { onMore: () => void }) {
           <p className="font-display text-[13px] font-bold leading-snug">
             {trialDays !== null && trialDays > 0 ? `Prueba gratis · ${trialDays} días` : 'Todo tu negocio, en un solo lugar'}
           </p>
-          <Link to="/billing" className="mt-2.5 inline-flex w-full items-center justify-center gap-1 rounded-lg bg-white/15 py-1.5 text-[11px] font-semibold hover:bg-white/25">
-            Ver mi plan <ArrowUpRight className="size-3" />
+          <Link to={planTarget} className="mt-2.5 inline-flex w-full items-center justify-center gap-1 rounded-lg bg-white/15 py-1.5 text-[11px] font-semibold hover:bg-white/25">
+            {canManageSettings ? 'Ver mi plan' : 'Mi cuenta'} <ArrowUpRight className="size-3" />
           </Link>
         </div>
-        <button onClick={onMore} className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left transition-colors hover:bg-brand-50">
+        <Link to="/account" className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left transition-colors hover:bg-brand-50">
           <Avatar name={session?.user.fullName} src={session?.user.avatarUrl} size="sm" />
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[12px] font-semibold text-ink">{session?.user.fullName}</span>
             <span className="block truncate text-[10.5px] text-muted">{session?.user.role === 'Owner' ? 'Propietario' : session?.user.email}</span>
           </span>
           <ChevronRight className="size-3.5 text-muted" />
-        </button>
+        </Link>
         <button onClick={logout} className="mt-1 flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-[11px] font-medium text-muted hover:text-rose-600">
           <LogOut className="size-3.5" /> Cerrar sesión
         </button>
@@ -215,6 +219,9 @@ function Topbar({ onMore }: { onMore: () => void }) {
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
   const title = pageTitles[location.pathname] ?? 'NexComerce'
+  const canSell = canSee(session, 'sales.manage')
+  const canSeeWhatsApp = canSee(session, 'whatsapp.manage')
+  const canSeeSettings = canSee(session, 'settings.manage')
 
   return (
     <header className="sticky top-0 z-30 border-b border-line/80 bg-white/85 backdrop-blur-xl">
@@ -235,12 +242,14 @@ function Topbar({ onMore }: { onMore: () => void }) {
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2">
-          <Link
-            to="/pos"
-            className="hidden items-center gap-1.5 rounded-xl bg-brand-600 px-3.5 py-2 text-[12px] font-semibold text-white shadow-[var(--shadow-glow)] transition-colors hover:bg-brand-700 sm:flex"
-          >
-            <Plus className="size-4" /> Nueva venta
-          </Link>
+          {canSell && (
+            <Link
+              to="/pos"
+              className="hidden items-center gap-1.5 rounded-xl bg-brand-600 px-3.5 py-2 text-[12px] font-semibold text-white shadow-[var(--shadow-glow)] transition-colors hover:bg-brand-700 sm:flex"
+            >
+              <Plus className="size-4" /> Nueva venta
+            </Link>
+          )}
           <button className="icon-btn relative border border-line bg-white" aria-label="Notificaciones">
             <Bell className="size-[18px]" />
             <span className="absolute right-2 top-2 size-1.5 rounded-full bg-rose-500 ring-2 ring-white" />
@@ -263,12 +272,19 @@ function Topbar({ onMore }: { onMore: () => void }) {
                     <p className="truncate text-[11px] text-muted">{session?.user.email}</p>
                   </div>
                   <div className="divider my-1" />
-                  <Link to="/settings" onClick={() => setMenuOpen(false)} className="nav-item py-2 text-[12px]">
-                    <Settings className="size-4" /> Mi cuenta y negocio
+                  <Link to="/account" onClick={() => setMenuOpen(false)} className="nav-item py-2 text-[12px]">
+                    <UserRound className="size-4" /> Mi cuenta
                   </Link>
-                  <Link to="/whatsapp" onClick={() => setMenuOpen(false)} className="nav-item py-2 text-[12px]">
-                    <MessageCircle className="size-4" /> WhatsApp
-                  </Link>
+                  {canSeeSettings && (
+                    <Link to="/settings" onClick={() => setMenuOpen(false)} className="nav-item py-2 text-[12px]">
+                      <Settings className="size-4" /> Configuración del negocio
+                    </Link>
+                  )}
+                  {canSeeWhatsApp && (
+                    <Link to="/whatsapp" onClick={() => setMenuOpen(false)} className="nav-item py-2 text-[12px]">
+                      <MessageCircle className="size-4" /> WhatsApp
+                    </Link>
+                  )}
                   <button onClick={() => { setMenuOpen(false); logout() }} className="nav-item w-full py-2 text-[12px] text-rose-600 hover:bg-rose-50 hover:text-rose-700">
                     <LogOut className="size-4" /> Cerrar sesión
                   </button>
@@ -282,53 +298,60 @@ function Topbar({ onMore }: { onMore: () => void }) {
   )
 }
 
-const mobileTabs = [
-  { to: '/', label: 'Inicio', icon: LayoutDashboard },
-  { to: '/orders', label: 'Pedidos', icon: ShoppingBag },
-  { to: '/cash', label: 'Caja', icon: Wallet },
+type MobileTab = { to: string; label: string; icon: typeof LayoutDashboard; permission?: string }
+
+const mobileCandidates: MobileTab[] = [
+  { to: '/', label: 'Inicio', icon: LayoutDashboard, permission: 'dashboard.view' },
+  { to: '/orders', label: 'Pedidos', icon: ShoppingBag, permission: 'sales.manage' },
+  { to: '/cash', label: 'Caja', icon: Wallet, permission: 'sales.manage' },
+  { to: '/products', label: 'Productos', icon: Package, permission: 'products.manage' },
+  { to: '/inventory', label: 'Inventario', icon: Boxes, permission: 'inventory.manage' },
+  { to: '/customers', label: 'Clientes', icon: Users, permission: 'customers.manage' },
+  { to: '/whatsapp', label: 'WhatsApp', icon: MessageCircle, permission: 'whatsapp.manage' },
 ]
 
 function MobileNav({ onMore }: { onMore: () => void }) {
+  const { session } = useAuth()
   const location = useLocation()
+  const allowed = mobileCandidates.filter((tab) => canSee(session, tab.permission))
+  const canSell = canSee(session, 'sales.manage')
+  const left = canSell ? allowed.slice(0, 2) : allowed.slice(0, 3)
+  const right = canSell ? allowed.slice(2, 3) : []
+  const columns = Math.max(1, left.length + right.length + (canSell ? 1 : 0) + 1)
+
+  const renderTab = (tab: MobileTab) => (
+    <NavLink
+      key={tab.to}
+      to={tab.to}
+      end={tab.to === '/'}
+      className={({ isActive }) =>
+        cn('relative flex flex-col items-center gap-1 rounded-xl py-1.5 text-[10px] font-medium transition-colors', isActive ? 'text-brand-700' : 'text-muted')
+      }
+    >
+      <tab.icon className="size-[21px]" strokeWidth={2} />
+      {tab.label}
+      {tab.to === '/whatsapp' && <span className="absolute right-1.5 top-0"><UnreadDot /></span>}
+    </NavLink>
+  )
+
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-white/95 pb-safe backdrop-blur-xl lg:hidden">
-      <div className="mx-auto grid max-w-lg grid-cols-5 items-end px-2 pb-1.5 pt-1.5">
-        {mobileTabs.slice(0, 2).map((tab) => (
-          <NavLink
-            key={tab.to}
-            to={tab.to}
-            end={tab.to === '/'}
-            className={({ isActive }) =>
-              cn('flex flex-col items-center gap-1 rounded-xl py-1.5 text-[10px] font-medium transition-colors', isActive ? 'text-brand-700' : 'text-muted')
-            }
-          >
-            <tab.icon className="size-[21px]" strokeWidth={2} />
-            {tab.label}
+      <div className="mx-auto grid max-w-lg items-end px-2 pb-1.5 pt-1.5" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
+        {left.map(renderTab)}
+        {canSell && (
+          <NavLink to="/pos" className="flex flex-col items-center pb-1">
+            <span
+              className={cn(
+                'flex size-[52px] -translate-y-3 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-[0_10px_24px_-8px_rgba(124,58,237,0.75)] transition-transform active:scale-95',
+                location.pathname === '/pos' && 'ring-4 ring-brand-100',
+              )}
+            >
+              <Plus className="size-7" strokeWidth={2.4} />
+            </span>
+            <span className="-mt-1 text-[10px] font-bold text-brand-700">Vender</span>
           </NavLink>
-        ))}
-        <NavLink to="/pos" className="flex flex-col items-center pb-1">
-          <span
-            className={cn(
-              'flex size-[52px] -translate-y-3 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-[0_10px_24px_-8px_rgba(124,58,237,0.75)] transition-transform active:scale-95',
-              location.pathname === '/pos' && 'ring-4 ring-brand-100',
-            )}
-          >
-            <Plus className="size-7" strokeWidth={2.4} />
-          </span>
-          <span className="-mt-1 text-[10px] font-bold text-brand-700">Vender</span>
-        </NavLink>
-        {mobileTabs.slice(2).map((tab) => (
-          <NavLink
-            key={tab.to}
-            to={tab.to}
-            className={({ isActive }) =>
-              cn('relative flex flex-col items-center gap-1 rounded-xl py-1.5 text-[10px] font-medium transition-colors', isActive ? 'text-brand-700' : 'text-muted')
-            }
-          >
-            <tab.icon className="size-[21px]" strokeWidth={2} />
-            {tab.label}
-          </NavLink>
-        ))}
+        )}
+        {right.map(renderTab)}
         <button onClick={onMore} className="flex flex-col items-center gap-1 rounded-xl py-1.5 text-[10px] font-medium text-muted">
           <Menu className="size-[21px]" strokeWidth={2} />
           Más
@@ -414,7 +437,7 @@ export function AppShell() {
 
   return (
     <div className="min-h-dvh bg-canvas">
-      <Sidebar onMore={() => setMoreOpen(true)} />
+      <Sidebar />
       <div className="lg:pl-[264px]">
         <Topbar onMore={() => setMoreOpen(true)} />
         <main className="min-h-[calc(100dvh-72px)]">

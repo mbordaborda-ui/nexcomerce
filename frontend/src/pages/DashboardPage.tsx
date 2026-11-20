@@ -27,13 +27,14 @@ import {
   ShoppingBag,
   Sparkles,
   TrendingUp,
+  UserRound,
   Users,
   Wallet,
   AlertTriangle,
   Bot,
 } from 'lucide-react'
 import { api } from '../lib/api'
-import { useAuth } from '../lib/auth'
+import { useAuth, usePermissions } from '../lib/auth'
 import type { Dashboard } from '../lib/types'
 import { dateShort, greeting, money, moneyShort, numberFormat, timeAgo } from '../lib/format'
 import { Badge, Button, EmptyState, PageLoader, ProductThumb, SectionCard } from '../components/ui'
@@ -64,6 +65,7 @@ function ChartTooltip({ active, payload, label, symbol }: {
 
 export function DashboardPage() {
   const { session } = useAuth()
+  const { canManageSales, canManageProducts, canManageInventory, canManageWhatsApp, canViewReports } = usePermissions()
   const symbol = session?.tenant.currencySymbol ?? '$'
   const [days, setDays] = useState(30)
   const [categoryView, setCategoryView] = useState<'total' | 'quantity'>('total')
@@ -95,11 +97,12 @@ export function DashboardPage() {
   const hasCategories = data.categorySales.length > 0
 
   const quickActions = [
-    { to: '/pos', label: 'Nueva venta', hint: 'Cobra en segundos', icon: ShoppingBag, className: 'bg-brand-600 text-white' },
-    { to: '/products', label: 'Agregar producto', hint: 'Catálogo e inventario', icon: Package, className: 'bg-white text-ink border border-line' },
-    { to: '/whatsapp', label: 'Ver WhatsApp', hint: `${data.whatsAppOpen} conversaciones`, icon: MessageCircle, className: 'bg-white text-ink border border-line' },
-    { to: '/reports', label: 'Reportes', hint: 'Analiza tu negocio', icon: BarChart3, className: 'bg-white text-ink border border-line' },
-  ]
+    ...(canManageSales ? [{ to: '/pos', label: 'Nueva venta', hint: 'Cobra en segundos', icon: ShoppingBag, className: 'bg-brand-600 text-white' }] : []),
+    ...(canManageProducts ? [{ to: '/products', label: 'Agregar producto', hint: 'Catálogo e inventario', icon: Package, className: 'bg-white text-ink border border-line' }] : []),
+    ...(canManageWhatsApp ? [{ to: '/whatsapp', label: 'Ver WhatsApp', hint: `${data.whatsAppOpen} conversaciones`, icon: MessageCircle, className: 'bg-white text-ink border border-line' }] : []),
+    ...(canViewReports ? [{ to: '/reports', label: 'Reportes', hint: 'Analiza tu negocio', icon: BarChart3, className: 'bg-white text-ink border border-line' }] : []),
+    { to: '/account', label: 'Mi cuenta', hint: 'Perfil y permisos', icon: UserRound, className: 'bg-white text-ink border border-line' },
+  ].slice(0, 4)
 
   return (
     <div className="page">
@@ -110,12 +113,16 @@ export function DashboardPage() {
           <p className="page-subtitle">Así va tu negocio hoy. Todo listo para seguir creciendo.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Link to="/reports" className="btn-secondary btn-sm hidden sm:inline-flex">
-            <BarChart3 className="size-3.5" /> Reportes
-          </Link>
-          <Link to="/pos" className="btn-primary btn-sm flex-1 sm:flex-none">
-            <Plus className="size-4" /> Nueva venta
-          </Link>
+          {canViewReports && (
+            <Link to="/reports" className="btn-secondary btn-sm hidden sm:inline-flex">
+              <BarChart3 className="size-3.5" /> Reportes
+            </Link>
+          )}
+          {canManageSales && (
+            <Link to="/pos" className="btn-primary btn-sm flex-1 sm:flex-none">
+              <Plus className="size-4" /> Nueva venta
+            </Link>
+          )}
         </div>
       </div>
 
@@ -323,7 +330,7 @@ export function DashboardPage() {
         <SectionCard
           title="Productos más vendidos"
           subtitle="Últimos 30 días"
-          action={<Link to="/products" className="text-[11px] font-semibold text-brand-700 hover:underline">Ver todos</Link>}
+          action={canManageProducts ? <Link to="/products" className="text-[11px] font-semibold text-brand-700 hover:underline">Ver todos</Link> : undefined}
           bodyClassName="p-2 sm:p-2.5"
         >
           {data.topProducts.length === 0 ? (
@@ -349,7 +356,7 @@ export function DashboardPage() {
           <SectionCard
             title="Stock bajo"
             subtitle="Productos que necesitan reposición"
-            action={<Link to="/inventory" className="text-[11px] font-semibold text-brand-700 hover:underline">Inventario</Link>}
+            action={canManageInventory ? <Link to="/inventory" className="text-[11px] font-semibold text-brand-700 hover:underline">Inventario</Link> : undefined}
             bodyClassName="p-2.5 sm:p-3"
           >
             {data.lowStock.length === 0 ? (
@@ -372,6 +379,7 @@ export function DashboardPage() {
             )}
           </SectionCard>
 
+          {canManageWhatsApp && (
           <div className="card overflow-hidden">
             <div className="relative bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 p-4 text-white">
               <div className="absolute -right-6 -top-8 size-28 rounded-full bg-white/10" />
@@ -400,8 +408,10 @@ export function DashboardPage() {
               </Link>
             </div>
           </div>
+          )}
         </div>
 
+        {canManageSales && (
         <SectionCard
           className="lg:col-span-2 xl:col-span-1"
           title="Ventas recientes"
@@ -433,6 +443,7 @@ export function DashboardPage() {
             </div>
           )}
         </SectionCard>
+        )}
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -454,7 +465,7 @@ export function DashboardPage() {
         </div>
       </div>
 
-      {data.pendingSales > 0 && (
+      {canManageSales && data.pendingSales > 0 && (
         <div className="mt-4 flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
           <Clock3 className="size-4 shrink-0 text-amber-600" />
           <p className="flex-1 text-[11.5px] text-amber-800">

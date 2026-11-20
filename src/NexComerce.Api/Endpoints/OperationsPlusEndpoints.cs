@@ -22,7 +22,8 @@ public static class OperationsPlusEndpoints
     // ── Caja ───────────────────────────────────────────────────────────────
     private static void MapCash(IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/cash").WithTags("Caja").RequireAuthorization();
+        var group = app.MapGroup("/api/cash").WithTags("Caja").RequireAuthorization()
+            .RequirePermission(Permissions.SalesManage);
 
         group.MapGet("", async (AppDbContext db) =>
         {
@@ -166,7 +167,8 @@ public static class OperationsPlusEndpoints
     // ── Cuentas por cobrar ─────────────────────────────────────────────────
     private static void MapReceivables(IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/receivables").WithTags("Cuentas por cobrar").RequireAuthorization();
+        var group = app.MapGroup("/api/receivables").WithTags("Cuentas por cobrar").RequireAuthorization()
+            .RequirePermission(Permissions.CustomersManage);
 
         group.MapGet("", async (AppDbContext db, string? status, string? search) =>
         {
@@ -315,7 +317,8 @@ public static class OperationsPlusEndpoints
     // ── Pedidos ────────────────────────────────────────────────────────────
     private static void MapOrders(IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/orders").WithTags("Pedidos").RequireAuthorization();
+        var group = app.MapGroup("/api/orders").WithTags("Pedidos").RequireAuthorization()
+            .RequirePermission(Permissions.SalesManage);
 
         group.MapGet("", async (AppDbContext db, string? status, string? channel, string? search) =>
         {

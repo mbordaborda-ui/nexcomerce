@@ -4,8 +4,10 @@ import {
   Building2,
   CheckCircle2,
   Crown,
+  KeyRound,
   Mail,
   MapPin,
+  MessageCircle,
   Pencil,
   Phone,
   Plus,
@@ -25,6 +27,7 @@ import {
   Badge,
   Button,
   ConfirmDialog,
+  CopyButton,
   EmptyState,
   Field,
   Input,
@@ -74,6 +77,7 @@ export function TeamPage() {
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [userForm, setUserForm] = useState<UserForm>(emptyUser)
   const [deactivating, setDeactivating] = useState<User | null>(null)
+  const [credentials, setCredentials] = useState<{ name: string; email: string; password: string; phone?: string } | null>(null)
 
   const [branchOpen, setBranchOpen] = useState(false)
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null)
@@ -130,6 +134,7 @@ export function TeamPage() {
           phone: userForm.phone || null,
           permissions: userForm.permissions,
           isActive: userForm.isActive,
+          password: userForm.password || null,
         })
       }
       return api.post<User>('/team/users', {
@@ -143,6 +148,14 @@ export function TeamPage() {
       })
     },
     onSuccess: () => {
+      if (!editingUser || userForm.password) {
+        setCredentials({
+          name: userForm.fullName,
+          email: editingUser?.email ?? userForm.email,
+          password: userForm.password,
+          phone: userForm.phone || undefined,
+        })
+      }
       toast(editingUser ? 'Usuario actualizado.' : 'Invitación creada. Comparte las credenciales con tu equipo.')
       setUserOpen(false)
       void queryClient.invalidateQueries({ queryKey: ['team-users'] })
@@ -425,7 +438,11 @@ export function TeamPage() {
             <Button
               onClick={() => saveUser.mutate()}
               loading={saveUser.isPending}
-              disabled={!userForm.fullName.trim() || (!editingUser && (!userForm.email.trim() || userForm.password.length < 8))}
+              disabled={
+                !userForm.fullName.trim() ||
+                (!editingUser && (!userForm.email.trim() || userForm.password.length < 8)) ||
+                (Boolean(editingUser) && userForm.password.length > 0 && userForm.password.length < 8)
+              }
             >
               {editingUser ? 'Guardar cambios' : 'Crear usuario'}
             </Button>
@@ -448,6 +465,11 @@ export function TeamPage() {
                 <Input type="text" value={userForm.password} onChange={(event) => setUserForm((current) => ({ ...current, password: event.target.value }))} placeholder="Temporal para el empleado" />
               </Field>
             </>
+          )}
+          {editingUser && (
+            <Field label="Nueva contraseña" hint="Opcional. Déjala vacía para conservar la actual." className="sm:col-span-2">
+              <Input type="text" value={userForm.password} onChange={(event) => setUserForm((current) => ({ ...current, password: event.target.value }))} placeholder="Nueva contraseña temporal (mínimo 8 caracteres)" />
+            </Field>
           )}
           <Field label="Rol">
             <Select value={userForm.role} onChange={(event) => setUserForm((current) => ({ ...current, role: event.target.value }))} disabled={editingUser?.role === 'Owner'}>
@@ -547,6 +569,62 @@ export function TeamPage() {
             </label>
           </div>
         </div>
+      </Modal>
+
+      <Modal
+        open={credentials !== null}
+        onClose={() => setCredentials(null)}
+        title="Credenciales de acceso"
+        subtitle="Compártelas de forma privada con el miembro del equipo."
+        size="sm"
+        footer={
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <Button variant="secondary" onClick={() => setCredentials(null)}>Cerrar</Button>
+            {credentials && (
+              <a
+                href={`https://wa.me/${(credentials.phone ?? '').replace(/\D/g, '')}?text=${encodeURIComponent(
+                  `Hola ${credentials.name}, tu acceso a NexComerce es:\nCorreo: ${credentials.email}\nContraseña temporal: ${credentials.password}\nIngresa en ${window.location.origin} y cambia tu contraseña en Mi cuenta.`,
+                )}`}
+                target="_blank"
+                rel="noreferrer"
+                className="btn-primary btn-sm"
+              >
+                <MessageCircle className="size-3.5" /> Enviar por WhatsApp
+              </a>
+            )}
+          </div>
+        }
+      >
+        {credentials && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 rounded-xl bg-brand-50/70 p-3">
+              <span className="flex size-10 items-center justify-center rounded-xl bg-white text-brand-600 shadow-sm">
+                <KeyRound className="size-4" />
+              </span>
+              <div>
+                <p className="text-[12.5px] font-bold text-ink">{credentials.name}</p>
+                <p className="text-[10.5px] text-muted">Acceso creado para {session?.tenant.name}</p>
+              </div>
+            </div>
+            <div className="rounded-xl border border-line p-3">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-muted">Correo</p>
+              <div className="mt-1 flex items-center justify-between gap-2">
+                <p className="truncate text-[12px] font-semibold text-ink">{credentials.email}</p>
+                <CopyButton value={credentials.email} />
+              </div>
+            </div>
+            <div className="rounded-xl border border-line p-3">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-muted">Contraseña temporal</p>
+              <div className="mt-1 flex items-center justify-between gap-2">
+                <p className="truncate font-mono text-[12px] font-semibold text-ink">{credentials.password}</p>
+                <CopyButton value={credentials.password} />
+              </div>
+            </div>
+            <p className="rounded-xl bg-amber-50 px-3 py-2.5 text-[10.5px] leading-relaxed text-amber-800">
+              El empleado debe iniciar sesión desde su celular y cambiar esta contraseña en <span className="font-semibold">Mi cuenta → Seguridad</span>.
+            </p>
+          </div>
+        )}
       </Modal>
 
       <ConfirmDialog

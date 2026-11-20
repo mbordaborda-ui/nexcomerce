@@ -7,6 +7,7 @@ import {
   Crown,
   KeyRound,
   Lock,
+  LogOut,
   Mail,
   Palette,
   Save,
@@ -16,9 +17,10 @@ import {
   UserRound,
 } from 'lucide-react'
 import { api, ApiError } from '../lib/api'
-import { useAuth } from '../lib/auth'
+import { useAuth, usePermissions } from '../lib/auth'
+import { permissionCatalog } from '../lib/access'
 import type { MeResponse, Tenant, User } from '../lib/types'
-import { businessTypeLabels, money, numberFormat, planLabels } from '../lib/format'
+import { businessTypeLabels, money, numberFormat, planLabels, roleLabel } from '../lib/format'
 import {
   Avatar,
   Badge,
@@ -75,12 +77,13 @@ const emptyBusiness: BusinessForm = {
   locale: 'es-CO', timeZone: 'America/Bogota',
 }
 
-export function SettingsPage() {
-  const { session, refresh } = useAuth()
+export function SettingsPage({ accountOnly = false }: { accountOnly?: boolean }) {
+  const { session, refresh, logout } = useAuth()
+  const { canManageSettings } = usePermissions()
   const toast = useToast()
   const queryClient = useQueryClient()
 
-  const [tab, setTab] = useState<'business' | 'account' | 'plan'>('business')
+  const [tab, setTab] = useState<'business' | 'account' | 'plan'>(accountOnly ? 'account' : 'business')
   const [business, setBusiness] = useState<BusinessForm>(emptyBusiness)
   const [profile, setProfile] = useState({ fullName: '', phone: '', avatarUrl: '' })
   const [password, setPassword] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
@@ -88,10 +91,11 @@ export function SettingsPage() {
   const { data: tenant, isLoading: tenantLoading } = useQuery({
     queryKey: ['tenant'],
     queryFn: () => api.get<Tenant>('/tenant'),
+    enabled: !accountOnly,
   })
 
   const { data: me } = useQuery({ queryKey: ['me'], queryFn: () => api.get<MeResponse>('/auth/me') })
-  const { data: plans } = useQuery({ queryKey: ['plans'], queryFn: () => api.get<PlanOption[]>('/plans') })
+  const { data: plans } = useQuery({ queryKey: ['plans'], queryFn: () => api.get<PlanOption[]>('/plans'), enabled: !accountOnly })
 
   useEffect(() => {
     if (!tenant) return
@@ -178,29 +182,38 @@ export function SettingsPage() {
   const usage = me?.usage
   const plan = me?.plan
   const currentPlan = plans?.find((option) => option.id === (plan?.plan ?? session?.tenant.plan))
+  const activeTab = accountOnly ? 'account' : canManageSettings ? tab : 'account'
+  const userPermissions = permissionCatalog.filter(
+    (permission) =>
+      session?.user.role === 'Owner' ||
+      session?.user.role === 'Admin' ||
+      Boolean(me?.user.permissions.includes(permission.key)),
+  )
 
-  if (tenantLoading) return <PageLoader label="Cargando configuración…" />
+  if (!accountOnly && tenantLoading) return <PageLoader label="Cargando configuración…" />
 
   const setB = <K extends keyof BusinessForm>(key: K, value: BusinessForm[K]) => setBusiness((current) => ({ ...current, [key]: value }))
 
   return (
     <div className="page">
       <PageHeader
-        title="Configuración"
-        subtitle="Personaliza tu negocio, tu cuenta y conoce tu plan."
+        title={accountOnly ? 'Mi cuenta' : 'Configuración'}
+        subtitle={accountOnly ? 'Actualiza tu perfil, cambia tu contraseña y revisa los permisos que te asignaron.' : 'Personaliza tu negocio, tu cuenta y conoce tu plan.'}
       />
 
-      <Tabs
-        value={tab}
-        onChange={setTab}
-        tabs={[
-          { id: 'business', label: 'Negocio', icon: <Building2 className="size-3.5" /> },
-          { id: 'account', label: 'Mi cuenta', icon: <UserRound className="size-3.5" /> },
-          { id: 'plan', label: 'Plan', icon: <Crown className="size-3.5" /> },
-        ]}
-      />
+      {!accountOnly && (
+        <Tabs
+          value={activeTab}
+          onChange={setTab}
+          tabs={[
+            ...(canManageSettings ? [{ id: 'business' as const, label: 'Negocio', icon: <Building2 className="size-3.5" /> }] : []),
+            { id: 'account' as const, label: 'Mi cuenta', icon: <UserRound className="size-3.5" /> },
+            ...(canManageSettings ? [{ id: 'plan' as const, label: 'Plan', icon: <Crown className="size-3.5" /> }] : []),
+          ]}
+        />
+      )}
 
-      {tab === 'business' && (
+      {activeTab === 'business' && (
         <div className="mt-3 grid gap-4 xl:grid-cols-[1fr_320px]">
           <div className="card p-4 sm:p-5">
             <div className="mb-4 flex items-center gap-2">
@@ -324,7 +337,7 @@ export function SettingsPage() {
         </div>
       )}
 
-      {tab === 'account' && (
+      {activeTab === 'account' && (
         <div className="mt-3 grid gap-4 lg:grid-cols-2">
           <div className="card p-4 sm:p-5">
             <div className="mb-4 flex items-center gap-2">
@@ -339,7 +352,7 @@ export function SettingsPage() {
               <div className="min-w-0">
                 <p className="truncate text-[13px] font-bold text-ink">{profile.fullName || me?.user.fullName}</p>
                 <p className="truncate text-[11px] text-muted">{me?.user.email}</p>
-                <Badge tone="violet" className="mt-1">{me?.user.role === 'Owner' ? 'Propietario' : me?.user.role}</Badge>
+                <Badge tone="violet" className="mt-1">{roleLabel(me?.user.role)}</Badge>
               </div>
             </div>
             <div className="mt-4 space-y-3">
@@ -400,10 +413,47 @@ export function SettingsPage() {
               <p className="mt-1 text-[10.5px] text-muted">Usas {me?.user.email} para entrar a NexComerce. El correo es único por cuenta.</p>
             </div>
           </div>
+
+          <div className="card p-4 sm:p-5 lg:col-span-2">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="size-4 text-emerald-600" />
+                <div>
+                  <p className="text-[13px] font-bold text-ink">Mis permisos</p>
+                  <p className="text-[10.5px] text-muted">Estas son las funciones que el propietario te asignó.</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                <Badge tone="gray">{roleLabel(me?.user.role)}</Badge>
+                <Badge tone="gray">{session?.branch?.name ?? 'Todas las sedes'}</Badge>
+              </div>
+            </div>
+
+            {userPermissions.length === 0 ? (
+              <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2.5 text-[11px] text-amber-800">
+                No tienes módulos asignados. Contacta al propietario para que ajuste tus permisos.
+              </p>
+            ) : (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {userPermissions.map((permission) => (
+                  <span key={permission.key} className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[10.5px] font-semibold text-emerald-700">
+                    <Check className="size-3" /> {permission.label}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-4 flex flex-col gap-2 border-t border-line pt-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-[10.5px] text-muted">Si necesitas otra función, pídele al propietario que la habilite.</p>
+              <Button variant="secondary" size="sm" onClick={logout}>
+                <LogOut className="size-3.5" /> Cerrar sesión
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
-      {tab === 'plan' && (
+      {activeTab === 'plan' && (
         <div className="mt-3 space-y-4">
           <div className="card p-5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

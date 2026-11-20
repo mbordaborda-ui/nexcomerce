@@ -25,7 +25,8 @@ public static class OperationsEndpoints
     // ── Sales ───────────────────────────────────────────────────────────────
     private static void MapSales(IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/sales").WithTags("Ventas").RequireAuthorization();
+        var group = app.MapGroup("/api/sales").WithTags("Ventas").RequireAuthorization()
+            .RequirePermission(Permissions.SalesManage);
 
         group.MapGet("", async (AppDbContext db, string? search, string? status, string? paymentMethod,
             DateTime? from, DateTime? to, Guid? branchId, int page = 1, int pageSize = 20) =>
@@ -414,7 +415,8 @@ public static class OperationsEndpoints
     // ── Expenses ────────────────────────────────────────────────────────────
     private static void MapExpenses(IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/expenses").WithTags("Gastos").RequireAuthorization();
+        var group = app.MapGroup("/api/expenses").WithTags("Gastos").RequireAuthorization()
+            .RequirePermission(Permissions.ExpensesManage);
 
         group.MapGet("", async (AppDbContext db, string? category, DateTime? from, DateTime? to, int page = 1, int pageSize = 30) =>
         {

@@ -36,7 +36,7 @@ public record UserDto(Guid Id, string FullName, string Email, string? Phone, str
 public record CreateUserRequest(string FullName, string Email, string Password, string Role, Guid? BranchId,
     string? Phone, string[]? Permissions);
 
-public record UpdateUserRequest(string FullName, string Role, Guid? BranchId, string? Phone, string[]? Permissions, bool IsActive);
+public record UpdateUserRequest(string FullName, string Role, Guid? BranchId, string? Phone, string[]? Permissions, bool IsActive, string? Password = null);
 
 public record BranchDto(Guid Id, string Name, string Code, string? Address, string? City, string? Phone,
     bool IsMain, bool IsActive, int UsersCount, DateTime CreatedAt);

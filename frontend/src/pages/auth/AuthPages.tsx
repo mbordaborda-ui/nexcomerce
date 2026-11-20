@@ -15,6 +15,7 @@ import {
   User,
 } from 'lucide-react'
 import { useAuth } from '../../lib/auth'
+import { firstAllowedPath } from '../../lib/access'
 import { Button, Field, Input, Select } from '../../components/ui'
 import { Logo } from '../../components/layout'
 
@@ -126,15 +127,21 @@ export function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  if (session) return <Navigate to="/" replace />
+  if (session) {
+    const can = (permission: string) =>
+      session.user.role === 'Owner' || session.user.role === 'Admin' || session.permissions.includes(permission)
+    return <Navigate to={firstAllowedPath(can)} replace />
+  }
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
     setError('')
     setLoading(true)
     try {
-      await login(email.trim(), password)
-      navigate('/', { replace: true })
+      const next = await login(email.trim(), password)
+      const can = (permission: string) =>
+        next.user.role === 'Owner' || next.user.role === 'Admin' || next.permissions.includes(permission)
+      navigate(firstAllowedPath(can), { replace: true })
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'No se pudo iniciar sesión.')
     } finally {
@@ -146,8 +153,10 @@ export function LoginPage() {
     setError('')
     setLoading(true)
     try {
-      await login('demo@nexcomerce.app', 'Demo1234!')
-      navigate('/', { replace: true })
+      const next = await login('demo@nexcomerce.app', 'Demo1234!')
+      const can = (permission: string) =>
+        next.user.role === 'Owner' || next.user.role === 'Admin' || next.permissions.includes(permission)
+      navigate(firstAllowedPath(can), { replace: true })
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'No se pudo entrar a la demo.')
     } finally {
@@ -208,7 +217,7 @@ export function LoginPage() {
           <label className="flex items-center gap-2 text-[11.5px] font-medium text-muted">
             <input type="checkbox" defaultChecked className="size-3.5 rounded border-line accent-brand-600" /> Recordarme
           </label>
-          <button type="button" className="text-[11.5px] font-semibold text-brand-700 hover:underline">¿Olvidaste tu contraseña?</button>
+          <span className="text-[10.5px] text-muted">¿Olvidaste tu contraseña? Pídele al propietario que la restablezca.</span>
         </div>
 
         {error && <p className="rounded-xl border border-rose-100 bg-rose-50 px-3 py-2.5 text-[12px] font-medium text-rose-700">{error}</p>}
@@ -223,6 +232,10 @@ export function LoginPage() {
         <span className="text-[10.5px] font-medium uppercase tracking-wider text-muted">o explora primero</span>
         <span className="h-px flex-1 bg-line" />
       </div>
+
+      <p className="mb-3 rounded-xl bg-canvas px-3 py-2.5 text-[11px] leading-relaxed text-muted">
+        <span className="font-semibold text-ink">¿Eres parte del equipo?</span> Entra con el correo y la contraseña que te asignó el propietario del negocio. Solo verás las funciones que él te haya habilitado.
+      </p>
 
       <button
         type="button"

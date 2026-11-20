@@ -12,7 +12,8 @@ public static class BillingEndpoints
 {
     public static void MapBillingEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/billing").WithTags("Suscripción").RequireAuthorization();
+        var group = app.MapGroup("/api/billing").WithTags("Suscripción").RequireAuthorization()
+            .RequirePermission(Permissions.SettingsManage);
 
         group.MapGet("/overview", async (AppDbContext db, CurrentUser current) =>
         {

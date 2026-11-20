@@ -16,7 +16,8 @@ public static class WhatsAppEndpoints
 {
     public static void MapWhatsAppEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/whatsapp").WithTags("WhatsApp").RequireAuthorization();
+        var group = app.MapGroup("/api/whatsapp").WithTags("WhatsApp").RequireAuthorization()
+            .RequirePermission(Permissions.WhatsAppManage);
 
         group.MapGet("/account", async (AppDbContext db, WhatsAppOptions options) =>
         {

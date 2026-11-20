@@ -86,6 +86,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Mantiene los permisos al día si el propietario los cambia mientras la sesión está abierta.
+  useEffect(() => {
+    if (!session) return
+    const onFocus = () => { void refresh() }
+    const interval = window.setInterval(() => { void refresh() }, 5 * 60 * 1000)
+    window.addEventListener('focus', onFocus)
+    return () => {
+      window.removeEventListener('focus', onFocus)
+      window.clearInterval(interval)
+    }
+  }, [session, refresh])
+
   const login = useCallback(async (email: string, password: string) => {
     const response = await api.post<AuthResponse>('/auth/login', { email, password })
     const next = toSession(response)

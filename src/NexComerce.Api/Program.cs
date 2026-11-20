@@ -75,6 +75,39 @@ app.Use(async (context, next) =>
     await next();
 });
 
+// Refresh role, branch and permissions from the database on every authenticated request.
+// This makes permission changes and deactivations effective immediately, without waiting for the JWT to expire.
+app.Use(async (context, next) =>
+{
+    if (context.User.Identity?.IsAuthenticated == true &&
+        Guid.TryParse(context.User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
+    {
+        var db = context.RequestServices.GetRequiredService<AppDbContext>();
+        var user = await db.Users.IgnoreQueryFilters().AsNoTracking()
+            .Include(u => u.Tenant)
+            .FirstOrDefaultAsync(u => u.Id == userId);
+
+        if (user is null || !user.IsActive || user.Tenant is null || !user.Tenant.IsActive)
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            await context.Response.WriteAsJsonAsync(new { message = "Tu usuario ya no está activo. Contacta al administrador." });
+            return;
+        }
+
+        var claims = context.User.Claims
+            .Where(c => c.Type is not ("permissions" or "branch_id" or ClaimTypes.Role or ClaimTypes.Name or ClaimTypes.Email))
+            .ToList();
+        claims.Add(new Claim("permissions", string.Join(',', user.PermissionList())));
+        claims.Add(new Claim(ClaimTypes.Role, user.Role.ToString()));
+        claims.Add(new Claim(ClaimTypes.Name, user.FullName));
+        claims.Add(new Claim(ClaimTypes.Email, user.Email));
+        if (user.BranchId.HasValue) claims.Add(new Claim("branch_id", user.BranchId.Value.ToString()));
+
+        context.User = new ClaimsPrincipal(new ClaimsIdentity(claims, context.User.Identity.AuthenticationType ?? "Bearer"));
+    }
+    await next();
+});
+
 app.UseAuthorization();
 
 if (app.Environment.IsDevelopment())
